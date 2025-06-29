@@ -127,6 +127,12 @@
             pointer-events: none;
             z-index: 10;
         }
+
+        /* Modal specific styles */
+        .modal-show {
+            transform: scale(1) !important;
+            opacity: 1 !important;
+        }
     </style>
 </head>
 <body class="flex flex-col min-h-screen">
@@ -159,6 +165,8 @@
                 <div class="flex items-center bg-blue-500 px-4 py-2 rounded-xl shadow-inner">
                     <i class="fas fa-star text-yellow-300 text-2xl mr-1"></i>
                     <span id="score" class="text-2xl font-bold text-white">0</span>
+                    <span class="text-2xl font-bold text-white ml-1 mr-1">/</span>
+                    <span id="target-score-display" class="text-2xl font-bold text-white">50</span>
                 </div>
             </div>
 
@@ -190,6 +198,25 @@
                 <!-- Star animation container -->
                 <div id="star-animation-container" class="absolute inset-0 pointer-events-none"></div>
             </div>
+        </div>
+    </div>
+
+    <!-- Level Complete Modal -->
+    <div id="level-complete-modal" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 text-center max-w-sm w-full transform scale-90 opacity-0 transition-all duration-300" id="modal-content">
+            <h2 class="text-4xl font-extrabold text-green-600 mb-4">🎉 Selamat! 🎉</h2>
+            <p class="text-2xl text-gray-800 mb-6" id="modal-message"></p>
+            <p class="text-xl text-gray-600 mb-8" id="modal-next-target"></p>
+
+            <button id="next-level-btn" class="w-full p-4 mb-4 bg-blue-500 text-white font-bold rounded-xl text-2xl shadow-lg transition-all duration-300 hover:bg-blue-600 transform hover:scale-105">
+                Lanjut ke Level Berikutnya
+            </button>
+            <button id="play-again-btn" class="w-full p-4 mb-4 bg-gray-400 text-white font-bold rounded-xl text-2xl shadow-lg transition-all duration-300 hover:bg-gray-500 transform hover:scale-105">
+                Main Lagi
+            </button>
+            <button id="rest-btn" class="w-full p-4 bg-red-500 text-white font-bold rounded-xl text-2xl shadow-lg transition-all duration-300 hover:bg-red-600 transform hover:scale-105">
+                Saya akan istirahat dulu
+            </button>
         </div>
     </div>
 
@@ -237,6 +264,7 @@
         const additionBtn = document.getElementById('addition-btn');
         const subtractionBtn = document.getElementById('subtraction-btn');
         const scoreDisplay = document.getElementById('score');
+        const targetScoreDisplay = document.getElementById('target-score-display');
         const flashcardContainer = document.getElementById('flashcard-container');
         const questionExpressionSpan = document.getElementById('question-expression');
         const answerSpan = document.getElementById('answer');
@@ -246,11 +274,22 @@
         const optionsContainer = document.getElementById('options-container');
         const narrationTextElement = document.getElementById('narration-text');
 
+        // Modal Elements
+        const levelCompleteModal = document.getElementById('level-complete-modal');
+        const modalContent = document.getElementById('modal-content');
+        const modalMessage = document.getElementById('modal-message');
+        const modalNextTarget = document.getElementById('modal-next-target');
+        const nextLevelBtn = document.getElementById('next-level-btn');
+        const playAgainBtn = document.getElementById('play-again-btn');
+        const restBtn = document.getElementById('rest-btn'); // New button element
+
 
         // App State
         let currentOperation = null; // 'addition' or 'subtraction'
         let currentQuestion = null;
         let score = 0;
+        let level = 1; // Track current level
+        let targetScore = 50; // Initial target for level 1
         let startTime; // To record when the question starts
         let timerInterval; // To update the timer display
         let questionTimeout; // New variable for the 15-second timeout
@@ -262,6 +301,19 @@
             'bg-gradient-blue-3',
             'bg-gradient-blue-4', // More blue variations
             'bg-gradient-blue-5'
+        ];
+
+        // Array of motivational narrations for new questions
+        const motivationalNarrations = [
+            'Ayo, jawab dengan cepat!',
+            'Semangat! Tunjukkan kemampuanmu!',
+            'Kamu pasti bisa! Ayo fokus!',
+            'Siap-siap, soal berikutnya datang!',
+            'Ayo berlatih, jadi makin pintar!',
+            'Kerja bagus! Ayo lanjutkan!',
+            'Ini mudah bagimu! Ayo jawab!',
+            'Tantangan baru menantimu!',
+            'Cepat dan tepat! Ayo!'
         ];
 
         // Function to show a screen
@@ -277,7 +329,7 @@
             timerDisplay.textContent = `${elapsedTime.toFixed(1)}s`;
         };
 
-        // New function to handle question timeout
+        // Function to handle question timeout
         const handleTimeout = () => {
             clearInterval(timerInterval); // Stop the timer display
             Array.from(optionsContainer.children).forEach(btn => btn.disabled = true); // Disable options
@@ -304,6 +356,11 @@
             feedbackMessage.addEventListener('animationend', () => {
                 feedbackMessage.classList.remove('feedback-show');
             }, { once: true });
+
+            // After timeout feedback, clear content and wait for next question
+            questionExpressionSpan.textContent = ''; // Clear question
+            answerSpan.textContent = ''; // Clear answer
+            flashcardContainer.classList.remove('flipped'); // Ensure card is front-facing if it was flipped
 
             setTimeout(() => {
                 generateQuestion();
@@ -368,7 +425,9 @@
             // Clear feedback and narration
             feedbackMessage.textContent = '';
             feedbackMessage.className = 'text-3xl font-bold mt-6 text-center text-white'; // Reset feedback style and ensure white text
-            const initialNarration = 'Ayo, jawab dengan cepat!';
+            
+            // Randomly select initial narration
+            const initialNarration = motivationalNarrations[Math.floor(Math.random() * motivationalNarrations.length)];
             narrationTextElement.textContent = initialNarration;
             speakNarration(initialNarration); // TTS for initial prompt
 
@@ -464,7 +523,7 @@
                     starsChange = 2;
                     feedbackMsg = 'Baik! Terus berlatih!';
                     narrationMsg = `Lumayan! Kamu mendapatkan ${starsChange} bintang!`;
-                } else if (elapsedTime <= 15) { // Up to 15 seconds (changed from 10)
+                } else if (elapsedTime <= 15) { // Up to 15 seconds
                     starsChange = 1;
                     feedbackMsg = 'Jawabanmu BENAR!';
                     narrationMsg = `Bagus! Kamu mendapatkan ${starsChange} bintang!`;
@@ -500,6 +559,12 @@
             narrationTextElement.textContent = narrationMsg;
             speakNarration(narrationMsg); // TTS for feedback narration
 
+            // Clear question content during feedback phase
+            questionExpressionSpan.textContent = '';
+            answerSpan.textContent = '';
+            flashcardContainer.classList.remove('flipped'); // Ensure card is front-facing if it was flipped
+
+
             // Remove animation class after it finishes
             scoreDisplay.addEventListener('animationend', () => {
                 scoreDisplay.classList.remove('score-pop');
@@ -509,17 +574,31 @@
             }, { once: true });
 
 
-            // Move to next question after a short delay
-            setTimeout(() => {
-                generateQuestion();
-                // Re-enable options
-                Array.from(optionsContainer.children).forEach(btn => btn.disabled = false);
-            }, 1500);
+            // Check for target score achievement
+            if (score >= targetScore) {
+                // Stop game flow
+                clearInterval(timerInterval);
+                clearTimeout(questionTimeout);
+                Array.from(optionsContainer.children).forEach(btn => btn.disabled = true);
+
+                // Show level complete modal after a short delay
+                setTimeout(() => {
+                    showLevelCompleteModal();
+                }, 2000); // Give time for animations and feedback to show
+            } else {
+                // Only generate next question if game is not complete
+                setTimeout(() => {
+                    generateQuestion();
+                    // Re-enable options
+                    Array.from(optionsContainer.children).forEach(btn => btn.disabled = false);
+                }, 1500);
+            }
         };
 
         // Function for Text-to-Speech
         const speakNarration = (text) => {
             if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel(); // Stop any ongoing speech
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = 'id-ID'; // Set language to Indonesian
                 // You can customize voice here if needed:
@@ -531,25 +610,87 @@
             }
         };
 
+        // Function to show the modal
+        const showLevelCompleteModal = () => {
+            levelCompleteModal.classList.remove('hidden');
+            modalContent.classList.remove('scale-90', 'opacity-0');
+            modalContent.classList.add('scale-100', 'opacity-100', 'modal-show'); // Add modal-show for transition
+
+            modalMessage.textContent = `Kamu berhasil mengumpulkan ${score} bintang!`;
+            const nextTarget = targetScore + 25; // Example progression
+            modalNextTarget.textContent = `Siap untuk level berikutnya? Target: ${nextTarget} bintang!`;
+            speakNarration(`Selamat! Kamu berhasil mencapai ${score} bintang! Siap untuk level berikutnya? Target: ${nextTarget} bintang!`);
+        };
+
+        // Function to hide the modal
+        const hideLevelCompleteModal = () => {
+            modalContent.classList.remove('scale-100', 'opacity-100', 'modal-show');
+            modalContent.classList.add('scale-90', 'opacity-0');
+            // Hide the modal completely after transition
+            modalContent.addEventListener('transitionend', () => {
+                levelCompleteModal.classList.add('hidden');
+            }, { once: true });
+        };
+
         // Event Listeners
         additionBtn.addEventListener('click', () => {
             currentOperation = 'addition';
+            level = 1; // Reset level
+            targetScore = 50; // Reset target score
             score = 0; // Reset score for new session
             scoreDisplay.textContent = score;
+            targetScoreDisplay.textContent = targetScore; // Update target display
             generateQuestion();
             showScreen('flashcard-screen');
         });
 
         subtractionBtn.addEventListener('click', () => {
             currentOperation = 'subtraction';
+            level = 1; // Reset level
+            targetScore = 50; // Reset target score
             score = 0; // Reset score for new session
             scoreDisplay.textContent = score;
+            targetScoreDisplay.textContent = targetScore; // Update target display
             generateQuestion();
             showScreen('flashcard-screen');
         });
 
         flashcardContainer.addEventListener('click', () => {
             flashcardContainer.classList.toggle('flipped');
+        });
+
+        // Event listener for "Lanjut ke Level Berikutnya"
+        nextLevelBtn.addEventListener('click', () => {
+            hideLevelCompleteModal();
+            level++; // Increment level
+            targetScore += 25; // Increase target score
+            score = 0; // Reset score for new level
+            scoreDisplay.textContent = score;
+            targetScoreDisplay.textContent = targetScore; // Update target display
+            generateQuestion(); // Start new level
+        });
+
+        // Event listener for "Main Lagi"
+        playAgainBtn.addEventListener('click', () => {
+            hideLevelCompleteModal();
+            level = 1; // Reset level
+            targetScore = 50; // Reset target score
+            score = 0; // Reset score
+            scoreDisplay.textContent = score;
+            targetScoreDisplay.textContent = targetScore; // Update target display
+            generateQuestion(); // Start new game
+        });
+
+        // New event listener for "Saya akan istirahat dulu"
+        restBtn.addEventListener('click', () => {
+            hideLevelCompleteModal();
+            showScreen('home-screen'); // Go back to home screen
+            // Reset game state if desired, e.g., score = 0; level = 1; targetScore = 50;
+            // For now, it just goes back to the home screen without resetting score/level
+            // If you want to reset, uncomment the lines below:
+            // score = 0;
+            // level = 1;
+            // targetScore = 50;
         });
 
         // Initial screen display
