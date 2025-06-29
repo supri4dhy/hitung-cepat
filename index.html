@@ -209,6 +209,11 @@
             justify-content: center;
             align-items: center;
         }
+
+        /* Ensure question expression stays on one line */
+        #question-expression {
+            white-space: nowrap;
+        }
     </style>
 </head>
 <body class="flex flex-col min-h-screen">
@@ -484,6 +489,11 @@
             let num1, num2, num3, answer;
             let operatorSymbol;
             let maxAnswerRange; // Max possible answer for option generation
+            let questionText; // To hold the formatted question string
+
+            // Reset font size classes first to ensure no old classes persist
+            questionExpressionSpan.classList.remove('text-7xl', 'text-6xl', 'text-5xl');
+            questionExpressionSpan.classList.add('text-white', 'font-bold'); // Ensure base styles are there
 
             // Logic based on current level
             if (level === 1) {
@@ -499,8 +509,9 @@
                 } else {
                     answer = num1 + num2;
                 }
-                questionExpressionSpan.textContent = `${num1} ${operatorSymbol} ${num2}`;
+                questionText = `${num1} ${operatorSymbol} ${num2}`;
                 maxAnswerRange = 20; // Max for 10+10
+                questionExpressionSpan.classList.add('text-7xl'); // Default large size for simple questions
             } else if (level === 2) {
                 // Level 2: 3-number Addition
                 num1 = Math.floor(Math.random() * 10) + 1; // 1-10
@@ -508,8 +519,9 @@
                 num3 = Math.floor(Math.random() * 10) + 1; // 1-10
                 operatorSymbol = '+'; // Always addition for level 2
                 answer = num1 + num2 + num3;
-                questionExpressionSpan.textContent = `${num1} + ${num2} + ${num3}`;
+                questionText = `${num1} + ${num2} + ${num3}`;
                 maxAnswerRange = 30; // Max for 10+10+10
+                questionExpressionSpan.classList.add('text-5xl'); // Smaller for 3 numbers to prevent wrap
             } else { // level >= 3
                 // Level 3 and beyond: Mixed 2-number Addition/Subtraction
                 const operationType = Math.random() < 0.5 ? 'addition' : 'subtraction';
@@ -526,11 +538,13 @@
                     operatorSymbol = '+';
                     answer = num1 + num2;
                 }
-                questionExpressionSpan.textContent = `${num1} ${operatorSymbol} ${num2}`;
+                questionText = `${num1} ${operatorSymbol} ${num2}`;
                 maxAnswerRange = 20; // Max for 10+10
+                questionExpressionSpan.classList.add('text-7xl'); // Back to default size for 2 numbers
             }
 
             currentQuestion = { num1, num2, num3: num3 || 0, operator: operatorSymbol, answer: answer }; // Include num3 for level 2
+            questionExpressionSpan.textContent = questionText; // Set the text content
             answerSpan.textContent = currentQuestion.answer;
 
             // Reset flashcard flip state
