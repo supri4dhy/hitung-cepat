@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Petualangan Angka Cilik!</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            overflow: hidden; /* Prevent scroll on initial load */
+        }
+        /* Custom styles for backface-hidden for flip animation */
+        .flashcard-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+        .flashcard-front, .flashcard-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden; /* Safari */
+            backface-visibility: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            border-radius: 1rem;
+        }
+        .flashcard-back {
+            transform: rotateY(180deg);
+            background-color: #A78BFA; /* purple-400 for back of question card */
+        }
+        .flashcard-container.flipped .flashcard-inner {
+            transform: rotateY(180deg);
+        }
+        /* Gradient backgrounds - Adjusting to cool tones */
+        .bg-gradient-blue-1 {
+            background: linear-gradient(to bottom, #BFDBFE, #93C5FD); /* blue-200 to blue-300 */
+        }
+        .bg-gradient-blue-2 {
+            background: linear-gradient(to bottom, #A7F3D0, #67E8F9); /* cyan-200 to cyan-400 */
+        }
+        .bg-gradient-blue-3 {
+            background: linear-gradient(to bottom, #C7D2FE, #A5B4FC); /* indigo-200 to indigo-300 */
+        }
+        .bg-gradient-blue-4 {
+            background: linear-gradient(to bottom, #BFDBFE, #BFDBFE); /* blue-200 to blue-200 (solid blue) */
+        }
+        .bg-gradient-blue-5 {
+            background: linear-gradient(to bottom, #BFDBFE, #BFDBFE); /* blue-200 to blue-200 (solid blue) */
+        }
+        /* Home screen background */
+        .bg-home-gradient {
+            background: linear-gradient(to bottom, #93C5FD, #C4B5FD); /* blue-300 to purple-400 */
+        }
+
+        /* Custom button hover effects */
+        .btn-green:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .btn-red:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .btn-blue-option:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 10px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Score animation */
+        @keyframes scorePop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        .score-pop {
+            animation: scorePop 0.3s ease-out;
+        }
+
+        /* Feedback message animation */
+        @keyframes fadeInScale {
+            0% { opacity: 0; transform: scale(0.8); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        .feedback-show {
+            animation: fadeInScale 0.3s ease-out;
+        }
+
+        /* New Star Animation for correct answers (fly out horizontally) */
+        @keyframes starFlyOut {
+            0% { opacity: 1; transform: translate(0, 0) scale(0.5); }
+            50% { opacity: 1; transform: translate(var(--star-dx), var(--star-dy)) scale(1.2); }
+            100% { opacity: 0; transform: translate(var(--star-dx-end), var(--star-dy-end)) scale(0.8); }
+        }
+        .animated-star-correct {
+            position: absolute;
+            font-size: 2rem;
+            color: #FCD34D; /* yellow-400 */
+            animation: starFlyOut 0.8s forwards ease-out;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        /* New Star Animation for incorrect answers (fly away from score) */
+        @keyframes starFlyAway {
+            0% { opacity: 1; transform: translate(0, 0) scale(1); }
+            100% { opacity: 0; transform: translate(50px, -50px) scale(0.5); } /* Fly up-right and fade */
+        }
+        .animated-star-incorrect {
+            position: absolute;
+            font-size: 2rem;
+            color: #EF4444; /* red-500 */
+            animation: starFlyAway 0.8s forwards ease-out;
+            pointer-events: none;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+    <!-- Main App Container -->
+    <div id="app" class="flex-1 flex flex-col">
+        <!-- Home Screen -->
+        <div id="home-screen" class="flex-1 flex flex-col items-center justify-center p-4 bg-home-gradient">
+            <h1 class="text-5xl md:text-6xl font-extrabold text-white mb-10 text-center leading-tight drop-shadow-lg">
+                Petualangan Angka Cilik!
+            </h1>
+
+            <button id="addition-btn" class="w-10/12 md:w-2/3 lg:w-1/2 p-6 mb-6 bg-green-500 rounded-2xl shadow-xl flex flex-col items-center justify-center transition-all duration-300 btn-green transform hover:scale-105">
+                <i class="fas fa-plus-circle text-white text-5xl mb-2"></i>
+                <span class="text-3xl font-bold text-white mt-2">Tambah-Tambahan</span>
+            </button>
+
+            <button id="subtraction-btn" class="w-10/12 md:w-2/3 lg:w-1/2 p-6 bg-red-500 rounded-2xl shadow-xl flex flex-col items-center justify-center transition-all duration-300 btn-red transform hover:scale-105">
+                <i class="fas fa-minus-circle text-white text-5xl mb-2"></i>
+                <span class="text-3xl font-bold text-white mt-2">Pengurangan</span>
+            </button>
+        </div>
+
+        <!-- Flashcard Screen -->
+        <div id="flashcard-screen" class="hidden flex-1 flex flex-col bg-gradient-blue-1 transition-colors duration-500">
+            <!-- Header -->
+            <div class="flex flex-row items-center justify-between p-4 bg-blue-600 bg-opacity-80 rounded-b-xl shadow-md">
+                <div class="flex items-center bg-blue-500 px-4 py-2 rounded-xl shadow-inner">
+                    <span id="timer-display" class="text-2xl font-bold text-white">0.0s</span>
+                </div>
+                <div class="flex items-center bg-blue-500 px-4 py-2 rounded-xl shadow-inner">
+                    <i class="fas fa-star text-yellow-300 text-2xl mr-1"></i>
+                    <span id="score" class="text-2xl font-bold text-white">0</span>
+                </div>
+            </div>
+
+            <!-- Content Area -->
+            <div class="flex-1 flex flex-col items-center justify-center p-4 overflow-y-auto relative">
+                <!-- Flashcard Container (Question Card) -->
+                <div id="flashcard-container" class="w-11/12 max-w-md h-64 bg-purple-500 rounded-2xl shadow-lg relative cursor-pointer mb-6 transform hover:scale-105 transition-transform duration-300">
+                    <div class="flashcard-inner">
+                        <div class="flashcard-front">
+                            <span id="question-expression" class="text-7xl font-bold text-white"></span>
+                        </div>
+                        <div class="flashcard-back">
+                            <span id="answer" class="text-7xl font-bold text-green-300"></span>
+                            <span class="text-4xl font-bold text-white mt-4">Jawaban!</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Answer Options -->
+                <div id="options-container" class="grid grid-cols-2 gap-4 mt-4 w-11/12 max-w-md">
+                    <!-- Options will be injected here by JavaScript -->
+                </div>
+
+                <!-- Feedback Message -->
+                <p id="feedback-message" class="text-3xl font-bold mt-6 text-center feedback-show text-white"></p>
+                <!-- Narration Text -->
+                <p id="narration-text" class="text-xl text-center text-white mt-2"></p>
+
+                <!-- Star animation container -->
+                <div id="star-animation-container" class="absolute inset-0 pointer-events-none"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Placeholder (same as React Native version)
+        // import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        // import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        // import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // let app, db, auth;
+        // let userId = 'anonymous'; // Default user ID
+
+        // const initializeFirebase = async () => {
+        //   try {
+        //     const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        //     const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+
+        //     app = initializeApp(firebaseConfig);
+        //     db = getFirestore(app);
+        //     auth = getAuth(app);
+
+        //     if (typeof __initial_auth_token !== 'undefined') {
+        //       await signInWithCustomToken(auth, __initial_auth_token);
+        //     } else {
+        //       await signInAnonymously(auth);
+        //     }
+
+        //     onAuthStateChanged(auth, (user) => {
+        //       if (user) {
+        //         userId = user.uid;
+        //         console.log('User is signed in:', userId);
+        //       } else {
+        //         userId = crypto.randomUUID();
+        //         console.log('User is signed out or anonymous:', userId);
+        //       }
+        //     });
+        //   } catch (error) {
+        //     console.error("Error initializing Firebase:", error);
+        //   }
+        // };
+
+        // DOM Elements
+        const homeScreen = document.getElementById('home-screen');
+        const flashcardScreen = document.getElementById('flashcard-screen');
+        const additionBtn = document.getElementById('addition-btn');
+        const subtractionBtn = document.getElementById('subtraction-btn');
+        const scoreDisplay = document.getElementById('score');
+        const flashcardContainer = document.getElementById('flashcard-container');
+        const questionExpressionSpan = document.getElementById('question-expression');
+        const answerSpan = document.getElementById('answer');
+        const feedbackMessage = document.getElementById('feedback-message');
+        const timerDisplay = document.getElementById('timer-display');
+        const starAnimationContainer = document.getElementById('star-animation-container');
+        const optionsContainer = document.getElementById('options-container');
+        const narrationTextElement = document.getElementById('narration-text');
+
+
+        // App State
+        let currentOperation = null; // 'addition' or 'subtraction'
+        let currentQuestion = null;
+        let score = 0;
+        let startTime; // To record when the question starts
+        let timerInterval; // To update the timer display
+        let questionTimeout; // New variable for the 15-second timeout
+
+        // Array of background gradient classes for dynamic changes (cool tones)
+        const backgroundGradients = [
+            'bg-gradient-blue-1',
+            'bg-gradient-blue-2',
+            'bg-gradient-blue-3',
+            'bg-gradient-blue-4', // More blue variations
+            'bg-gradient-blue-5'
+        ];
+
+        // Function to show a screen
+        const showScreen = (screenId) => {
+            homeScreen.classList.add('hidden');
+            flashcardScreen.classList.add('hidden');
+            document.getElementById(screenId).classList.remove('hidden');
+        };
+
+        // Function to update the timer display
+        const updateTimer = () => {
+            const elapsedTime = (Date.now() - startTime) / 1000;
+            timerDisplay.textContent = `${elapsedTime.toFixed(1)}s`;
+        };
+
+        // New function to handle question timeout
+        const handleTimeout = () => {
+            clearInterval(timerInterval); // Stop the timer display
+            Array.from(optionsContainer.children).forEach(btn => btn.disabled = true); // Disable options
+
+            let starsChange = -2;
+            score = Math.max(0, score + starsChange); // Deduct 2 stars, ensure score doesn't go below 0
+
+            scoreDisplay.textContent = score;
+            scoreDisplay.classList.add('score-pop');
+
+            feedbackMessage.textContent = 'Waktu habis!';
+            feedbackMessage.classList.remove('text-green-300');
+            feedbackMessage.classList.add('text-red-300', 'feedback-show');
+
+            const narrationMsg = 'Waktu habis! Bintangmu berkurang 2.';
+            narrationTextElement.textContent = narrationMsg;
+            speakNarration(narrationMsg); // TTS for timeout
+
+            spawnStars(1, 'incorrect'); // Animate star disappearing
+
+            scoreDisplay.addEventListener('animationend', () => {
+                scoreDisplay.classList.remove('score-pop');
+            }, { once: true });
+            feedbackMessage.addEventListener('animationend', () => {
+                feedbackMessage.classList.remove('feedback-show');
+            }, { once: true });
+
+            setTimeout(() => {
+                generateQuestion();
+                Array.from(optionsContainer.children).forEach(btn => btn.disabled = false);
+            }, 1500);
+        };
+
+        // Function to generate a new question
+        const generateQuestion = () => {
+            // Clear previous timers and reset display
+            clearInterval(timerInterval);
+            clearTimeout(questionTimeout); // Clear the previous timeout
+            timerDisplay.textContent = '0.0s';
+
+            let num1 = Math.floor(Math.random() * 10) + 1; // Angka 1-10
+            let num2 = Math.floor(Math.random() * 10) + 1; // Angka 1-10
+            let answer;
+            let operatorSymbol = currentOperation === 'addition' ? '+' : '-';
+
+            if (operatorSymbol === '-') {
+                // Pastikan num1 selalu lebih besar atau sama dengan num2 untuk pengurangan positif
+                if (num2 > num1) {
+                    [num1, num2] = [num2, num1]; // Tukar nilai jika num2 lebih besar
+                }
+                answer = num1 - num2;
+            } else {
+                answer = num1 + num2;
+                // Tidak perlu membatasi hasil < 9 lagi, bisa sampai 20
+            }
+
+            currentQuestion = { num1, num2, operator: operatorSymbol, answer: answer };
+
+            // Update flashcard display with combined expression
+            questionExpressionSpan.textContent = `${currentQuestion.num1} ${currentQuestion.operator} ${currentQuestion.num2}`;
+            answerSpan.textContent = currentQuestion.answer;
+
+            // Reset flashcard flip state
+            flashcardContainer.classList.remove('flipped');
+
+            // Generate options
+            const correctOption = currentQuestion.answer;
+            const newOptions = new Set();
+            newOptions.add(correctOption);
+
+            // Generate 3 fake options, ensuring they are distinct and within reasonable range (0-20)
+            while (newOptions.size < 4) {
+                let fakeOption = Math.floor(Math.random() * 21); // Angka 0-20
+                if (fakeOption !== correctOption && fakeOption >= 0 && fakeOption <= 20) {
+                    newOptions.add(fakeOption);
+                }
+            }
+
+            const shuffledOptions = Array.from(newOptions).sort(() => Math.random() - 0.5);
+            renderOptions(shuffledOptions);
+
+            // Start the timer for the new question
+            startTime = Date.now();
+            timerInterval = setInterval(updateTimer, 100);
+            // Set the 15-second timeout
+            questionTimeout = setTimeout(handleTimeout, 15000); // 15 seconds
+
+            // Clear feedback and narration
+            feedbackMessage.textContent = '';
+            feedbackMessage.className = 'text-3xl font-bold mt-6 text-center text-white'; // Reset feedback style and ensure white text
+            const initialNarration = 'Ayo, jawab dengan cepat!';
+            narrationTextElement.textContent = initialNarration;
+            speakNarration(initialNarration); // TTS for initial prompt
+
+            // Change background color of the flashcard screen
+            const randomGradient = backgroundGradients[Math.floor(Math.random() * backgroundGradients.length)];
+            flashcardScreen.className = `flex-1 flex flex-col ${randomGradient} transition-colors duration-500`;
+        };
+
+        // Function to render answer options
+        const renderOptions = (options) => {
+            optionsContainer.innerHTML = ''; // Clear previous options
+            options.forEach(option => {
+                const button = document.createElement('button');
+                button.textContent = option;
+                // Changed option card color to a different blue for distinction
+                button.className = 'p-4 bg-blue-600 rounded-xl shadow-md flex items-center justify-center transition-all duration-300 btn-blue-option text-4xl font-bold text-white transform hover:scale-105';
+                button.onclick = () => handleAnswer(option);
+                optionsContainer.appendChild(button);
+            });
+        };
+
+        // Function to spawn stars for appreciation
+        const spawnStars = (count, type) => {
+            const flashcardRect = flashcardContainer.getBoundingClientRect();
+            const startX = flashcardRect.left + flashcardRect.width / 2;
+            const startY = flashcardRect.top + flashcardRect.height / 2;
+
+            if (type === 'correct') {
+                for (let i = 0; i < count; i++) {
+                    const star = document.createElement('i');
+                    star.className = 'fas fa-star animated-star-correct';
+
+                    // Position stars to fly out horizontally from the center of the flashcard
+                    // Adjust angle to spread stars more horizontally from the center
+                    const totalWidth = flashcardRect.width * 0.8; // Spread within 80% of card width
+                    const spacing = totalWidth / (count > 1 ? count - 1 : 1);
+                    const initialXOffset = -totalWidth / 2 + (i * spacing);
+
+                    star.style.left = `${startX + initialXOffset}px`;
+                    star.style.top = `${startY}px`; // Start at the vertical center of the card
+                    star.style.setProperty('--star-dx', `${initialXOffset * 0.5}px`); // Small horizontal movement
+                    star.style.setProperty('--star-dy', `-50px`); // Move up slightly
+                    star.style.setProperty('--star-dx-end', `${initialXOffset * 1.5}px`); // Further horizontal movement
+                    star.style.setProperty('--star-dy-end', `-150px`); // Move further up
+                    star.style.animationDelay = `${i * 0.1}s`; // Stagger animation
+
+                    starAnimationContainer.appendChild(star);
+
+                    star.addEventListener('animationend', () => {
+                        star.remove();
+                    }, { once: true });
+                }
+            } else if (type === 'incorrect') {
+                // Animate one star disappearing from the score display
+                const scoreRect = scoreDisplay.parentElement.getBoundingClientRect(); // Get parent of score (the rounded box)
+                const star = document.createElement('i');
+                star.className = 'fas fa-star animated-star-incorrect';
+                star.style.left = `${scoreRect.left + scoreRect.width / 2}px`;
+                star.style.top = `${scoreRect.top + scoreRect.height / 2}px`;
+                starAnimationContainer.appendChild(star);
+                star.addEventListener('animationend', () => {
+                    star.remove();
+                }, { once: true });
+            }
+        };
+
+        // Function to handle user's answer
+        const handleAnswer = (selectedAnswer) => {
+            // Disable options temporarily
+            Array.from(optionsContainer.children).forEach(btn => btn.disabled = true);
+            clearInterval(timerInterval); // Stop the timer
+            clearTimeout(questionTimeout); // Clear the timeout when an answer is selected
+
+            const elapsedTime = (Date.now() - startTime) / 1000;
+            let starsChange = 0; // Renamed from starsEarned for clarity (can be negative)
+            let feedbackMsg = '';
+            let narrationMsg = '';
+
+            if (selectedAnswer === currentQuestion.answer) {
+                if (elapsedTime < 2) { // Less than 2 seconds
+                    starsChange = 5;
+                    feedbackMsg = 'Luar biasa! Sangat cepat!';
+                    narrationMsg = `Hebat! Kamu mendapatkan ${starsChange} bintang!`;
+                } else if (elapsedTime < 3) { // Less than 3 seconds
+                    starsChange = 4;
+                    feedbackMsg = 'Hebat! Kamu cepat!';
+                    narrationMsg = `Keren! Kamu mendapatkan ${starsChange} bintang!`;
+                } else if (elapsedTime < 4) { // Less than 4 seconds
+                    starsChange = 3;
+                    feedbackMsg = 'Bagus sekali!';
+                    narrationMsg = `Mantap! Kamu mendapatkan ${starsChange} bintang!`;
+                } else if (elapsedTime < 5) { // Less than 5 seconds
+                    starsChange = 2;
+                    feedbackMsg = 'Baik! Terus berlatih!';
+                    narrationMsg = `Lumayan! Kamu mendapatkan ${starsChange} bintang!`;
+                } else if (elapsedTime <= 15) { // Up to 15 seconds (changed from 10)
+                    starsChange = 1;
+                    feedbackMsg = 'Jawabanmu BENAR!';
+                    narrationMsg = `Bagus! Kamu mendapatkan ${starsChange} bintang!`;
+                } else { // More than 15 seconds (this case should ideally be caught by handleTimeout)
+                    starsChange = 0;
+                    feedbackMsg = 'Jawabanmu BENAR, tapi sangat lambat.';
+                    narrationMsg = 'Ayo lebih cepat lagi!';
+                }
+                score += starsChange;
+                feedbackMessage.classList.remove('text-red-300');
+                feedbackMessage.classList.add('text-green-300', 'feedback-show');
+            } else {
+                starsChange = -1; // Deduct 1 star for incorrect answer
+                score = Math.max(0, score + starsChange); // Ensure score doesn't go below 0
+                feedbackMsg = 'Salah, ayo coba lagi!';
+                narrationMsg = 'Sayang, jawabanmu salah. Bintangmu berkurang!';
+                feedbackMessage.classList.remove('text-green-300');
+                feedbackMessage.classList.add('text-red-300', 'feedback-show');
+            }
+
+            scoreDisplay.textContent = score;
+            scoreDisplay.classList.add('score-pop');
+
+            // Trigger star animations
+            if (starsChange > 0) {
+                spawnStars(starsChange, 'correct'); // Pass type 'correct'
+            } else if (starsChange < 0) {
+                spawnStars(1, 'incorrect'); // Spawn 1 star to animate away for incorrect
+            }
+
+            // Set feedback and narration messages
+            feedbackMessage.textContent = feedbackMsg;
+            narrationTextElement.textContent = narrationMsg;
+            speakNarration(narrationMsg); // TTS for feedback narration
+
+            // Remove animation class after it finishes
+            scoreDisplay.addEventListener('animationend', () => {
+                scoreDisplay.classList.remove('score-pop');
+            }, { once: true });
+            feedbackMessage.addEventListener('animationend', () => {
+                feedbackMessage.classList.remove('feedback-show');
+            }, { once: true });
+
+
+            // Move to next question after a short delay
+            setTimeout(() => {
+                generateQuestion();
+                // Re-enable options
+                Array.from(optionsContainer.children).forEach(btn => btn.disabled = false);
+            }, 1500);
+        };
+
+        // Function for Text-to-Speech
+        const speakNarration = (text) => {
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'id-ID'; // Set language to Indonesian
+                // You can customize voice here if needed:
+                // const voices = window.speechSynthesis.getVoices();
+                // utterance.voice = voices.find(voice => voice.lang === 'id-ID');
+                window.speechSynthesis.speak(utterance);
+            } else {
+                console.warn('SpeechSynthesis API not supported in this browser.');
+            }
+        };
+
+        // Event Listeners
+        additionBtn.addEventListener('click', () => {
+            currentOperation = 'addition';
+            score = 0; // Reset score for new session
+            scoreDisplay.textContent = score;
+            generateQuestion();
+            showScreen('flashcard-screen');
+        });
+
+        subtractionBtn.addEventListener('click', () => {
+            currentOperation = 'subtraction';
+            score = 0; // Reset score for new session
+            scoreDisplay.textContent = score;
+            generateQuestion();
+            showScreen('flashcard-screen');
+        });
+
+        flashcardContainer.addEventListener('click', () => {
+            flashcardContainer.classList.toggle('flipped');
+        });
+
+        // Initial screen display
+        window.onload = () => {
+            showScreen('home-screen');
+            // initializeFirebase(); // Uncomment to initialize Firebase
+        };
+    </script>
+</body>
+</html>
