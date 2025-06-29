@@ -40,7 +40,7 @@
         }
         .flashcard-back {
             transform: rotateY(180deg);
-            background-color: #93C5FD; /* blue-300 */
+            background-color: #A78BFA; /* purple-400 for back of question card */
         }
         .flashcard-container.flipped .flashcard-inner {
             transform: rotateY(180deg);
@@ -164,8 +164,8 @@
 
             <!-- Content Area -->
             <div class="flex-1 flex flex-col items-center justify-center p-4 overflow-y-auto relative">
-                <!-- Flashcard Container -->
-                <div id="flashcard-container" class="w-11/12 max-w-md h-64 bg-blue-500 rounded-2xl shadow-lg relative cursor-pointer mb-6 transform hover:scale-105 transition-transform duration-300">
+                <!-- Flashcard Container (Question Card) -->
+                <div id="flashcard-container" class="w-11/12 max-w-md h-64 bg-purple-500 rounded-2xl shadow-lg relative cursor-pointer mb-6 transform hover:scale-105 transition-transform duration-300">
                     <div class="flashcard-inner">
                         <div class="flashcard-front">
                             <span id="question-expression" class="text-7xl font-bold text-white"></span>
@@ -244,7 +244,7 @@
         const timerDisplay = document.getElementById('timer-display');
         const starAnimationContainer = document.getElementById('star-animation-container');
         const optionsContainer = document.getElementById('options-container');
-        const narrationTextElement = document.getElementById('narration-text'); // Re-added this element
+        const narrationTextElement = document.getElementById('narration-text');
 
 
         // App State
@@ -253,6 +253,7 @@
         let score = 0;
         let startTime; // To record when the question starts
         let timerInterval; // To update the timer display
+        let questionTimeout; // New variable for the 15-second timeout
 
         // Array of background gradient classes for dynamic changes (cool tones)
         const backgroundGradients = [
@@ -276,31 +277,61 @@
             timerDisplay.textContent = `${elapsedTime.toFixed(1)}s`;
         };
 
+        // New function to handle question timeout
+        const handleTimeout = () => {
+            clearInterval(timerInterval); // Stop the timer display
+            Array.from(optionsContainer.children).forEach(btn => btn.disabled = true); // Disable options
+
+            let starsChange = -2;
+            score = Math.max(0, score + starsChange); // Deduct 2 stars, ensure score doesn't go below 0
+
+            scoreDisplay.textContent = score;
+            scoreDisplay.classList.add('score-pop');
+
+            feedbackMessage.textContent = 'Waktu habis!';
+            feedbackMessage.classList.remove('text-green-300');
+            feedbackMessage.classList.add('text-red-300', 'feedback-show');
+
+            const narrationMsg = 'Waktu habis! Bintangmu berkurang 2.';
+            narrationTextElement.textContent = narrationMsg;
+            speakNarration(narrationMsg); // TTS for timeout
+
+            spawnStars(1, 'incorrect'); // Animate star disappearing
+
+            scoreDisplay.addEventListener('animationend', () => {
+                scoreDisplay.classList.remove('score-pop');
+            }, { once: true });
+            feedbackMessage.addEventListener('animationend', () => {
+                feedbackMessage.classList.remove('feedback-show');
+            }, { once: true });
+
+            setTimeout(() => {
+                generateQuestion();
+                Array.from(optionsContainer.children).forEach(btn => btn.disabled = false);
+            }, 1500);
+        };
+
         // Function to generate a new question
         const generateQuestion = () => {
-            // Clear previous timer and reset display
+            // Clear previous timers and reset display
             clearInterval(timerInterval);
+            clearTimeout(questionTimeout); // Clear the previous timeout
             timerDisplay.textContent = '0.0s';
 
-            let num1 = Math.floor(Math.random() * 9) + 1; // Number 1-9
-            let num2 = Math.floor(Math.random() * 9) + 1; // Number 1-9
+            let num1 = Math.floor(Math.random() * 10) + 1; // Angka 1-10
+            let num2 = Math.floor(Math.random() * 10) + 1; // Angka 1-10
             let answer;
             let operatorSymbol = currentOperation === 'addition' ? '+' : '-';
 
             if (operatorSymbol === '-') {
-                // Ensure num1 is always greater than or equal to num2 for positive subtraction results
+                // Pastikan num1 selalu lebih besar atau sama dengan num2 untuk pengurangan positif
                 if (num2 > num1) {
-                    [num1, num2] = [num2, num1]; // Swap values
+                    [num1, num2] = [num2, num1]; // Tukar nilai jika num2 lebih besar
                 }
                 answer = num1 - num2;
             } else {
                 answer = num1 + num2;
-                // Ensure result is not more than 9 for 1-digit addition
-                if (answer > 9) {
-                    num2 = 9 - num1;
-                    if (num2 < 1) num2 = 1; // Ensure num2 is at least 1
-                    answer = num1 + num2;
-                }
+                // Tidak perlu membatasi hasil < 9 lagi, bisa sampai 20
             }
 
             currentQuestion = { num1, num2, operator: operatorSymbol, answer: answer };
@@ -317,12 +348,10 @@
             const newOptions = new Set();
             newOptions.add(correctOption);
 
-            // Generate 3 fake options, ensuring they are distinct and within reasonable range
+            // Generate 3 fake options, ensuring they are distinct and within reasonable range (0-20)
             while (newOptions.size < 4) {
-                let fakeOption;
-                // Generate options near the answer, but not too far off, and within 0-9 range
-                fakeOption = Math.floor(Math.random() * 10); // 0-9
-                if (fakeOption !== correctOption && fakeOption >= 0 && fakeOption <= 9) {
+                let fakeOption = Math.floor(Math.random() * 21); // Angka 0-20
+                if (fakeOption !== correctOption && fakeOption >= 0 && fakeOption <= 20) {
                     newOptions.add(fakeOption);
                 }
             }
@@ -332,12 +361,16 @@
 
             // Start the timer for the new question
             startTime = Date.now();
-            timerInterval = setInterval(updateTimer, 100); // Update every 100ms
+            timerInterval = setInterval(updateTimer, 100);
+            // Set the 15-second timeout
+            questionTimeout = setTimeout(handleTimeout, 15000); // 15 seconds
 
             // Clear feedback and narration
             feedbackMessage.textContent = '';
             feedbackMessage.className = 'text-3xl font-bold mt-6 text-center text-white'; // Reset feedback style and ensure white text
-            narrationTextElement.textContent = ''; // Clear narration text
+            const initialNarration = 'Ayo, jawab dengan cepat!';
+            narrationTextElement.textContent = initialNarration;
+            speakNarration(initialNarration); // TTS for initial prompt
 
             // Change background color of the flashcard screen
             const randomGradient = backgroundGradients[Math.floor(Math.random() * backgroundGradients.length)];
@@ -350,7 +383,8 @@
             options.forEach(option => {
                 const button = document.createElement('button');
                 button.textContent = option;
-                button.className = 'p-4 bg-blue-500 rounded-xl shadow-md flex items-center justify-center transition-all duration-300 btn-blue-option text-4xl font-bold text-white transform hover:scale-105';
+                // Changed option card color to a different blue for distinction
+                button.className = 'p-4 bg-blue-600 rounded-xl shadow-md flex items-center justify-center transition-all duration-300 btn-blue-option text-4xl font-bold text-white transform hover:scale-105';
                 button.onclick = () => handleAnswer(option);
                 optionsContainer.appendChild(button);
             });
@@ -406,6 +440,7 @@
             // Disable options temporarily
             Array.from(optionsContainer.children).forEach(btn => btn.disabled = true);
             clearInterval(timerInterval); // Stop the timer
+            clearTimeout(questionTimeout); // Clear the timeout when an answer is selected
 
             const elapsedTime = (Date.now() - startTime) / 1000;
             let starsChange = 0; // Renamed from starsEarned for clarity (can be negative)
@@ -429,13 +464,13 @@
                     starsChange = 2;
                     feedbackMsg = 'Baik! Terus berlatih!';
                     narrationMsg = `Lumayan! Kamu mendapatkan ${starsChange} bintang!`;
-                } else if (elapsedTime <= 10) { // Up to 10 seconds
+                } else if (elapsedTime <= 15) { // Up to 15 seconds (changed from 10)
                     starsChange = 1;
                     feedbackMsg = 'Jawabanmu BENAR!';
                     narrationMsg = `Bagus! Kamu mendapatkan ${starsChange} bintang!`;
-                } else { // More than 10 seconds
-                    starsChange = 0; // No stars earned for being too slow, but still correct
-                    feedbackMsg = 'Jawabanmu BENAR, tapi butuh waktu lebih lama.';
+                } else { // More than 15 seconds (this case should ideally be caught by handleTimeout)
+                    starsChange = 0;
+                    feedbackMsg = 'Jawabanmu BENAR, tapi sangat lambat.';
                     narrationMsg = 'Ayo lebih cepat lagi!';
                 }
                 score += starsChange;
@@ -463,6 +498,7 @@
             // Set feedback and narration messages
             feedbackMessage.textContent = feedbackMsg;
             narrationTextElement.textContent = narrationMsg;
+            speakNarration(narrationMsg); // TTS for feedback narration
 
             // Remove animation class after it finishes
             scoreDisplay.addEventListener('animationend', () => {
@@ -479,6 +515,20 @@
                 // Re-enable options
                 Array.from(optionsContainer.children).forEach(btn => btn.disabled = false);
             }, 1500);
+        };
+
+        // Function for Text-to-Speech
+        const speakNarration = (text) => {
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'id-ID'; // Set language to Indonesian
+                // You can customize voice here if needed:
+                // const voices = window.speechSynthesis.getVoices();
+                // utterance.voice = voices.find(voice => voice.lang === 'id-ID');
+                window.speechSynthesis.speak(utterance);
+            } else {
+                console.warn('SpeechSynthesis API not supported in this browser.');
+            }
         };
 
         // Event Listeners
