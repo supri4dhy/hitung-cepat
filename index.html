@@ -211,7 +211,7 @@
             <button id="next-level-btn" class="w-full p-4 mb-4 bg-blue-500 text-white font-bold rounded-xl text-2xl shadow-lg transition-all duration-300 hover:bg-blue-600 transform hover:scale-105">
                 Lanjut ke Level Berikutnya
             </button>
-            <button id="play-again-btn" class="w-full p-4 mb-4 bg-gray-400 text-white font-bold rounded-xl text-2xl shadow-lg transition-all duration-300 hover:bg-gray-500 transform hover:scale-105">
+            <button id="play-again-btn" class="w-full p-4 mb-4 bg-gray-400 text-white font-bold rounded-xl text-2xl font-bold shadow-lg transition-all duration-300 hover:bg-gray-500 transform hover:scale-105">
                 Main Lagi
             </button>
             <button id="rest-btn" class="w-full p-4 bg-red-500 text-white font-bold rounded-xl text-2xl shadow-lg transition-all duration-300 hover:bg-red-600 transform hover:scale-105">
@@ -285,7 +285,7 @@
 
 
         // App State
-        let currentOperation = null; // 'addition' or 'subtraction'
+        let currentOperation = null; // 'addition' or 'subtraction' (only for level 1)
         let currentQuestion = null;
         let score = 0;
         let level = 1; // Track current level
@@ -375,44 +375,71 @@
             clearTimeout(questionTimeout); // Clear the previous timeout
             timerDisplay.textContent = '0.0s';
 
-            let num1 = Math.floor(Math.random() * 10) + 1; // Angka 1-10
-            let num2 = Math.floor(Math.random() * 10) + 1; // Angka 1-10
-            let answer;
-            let operatorSymbol = currentOperation === 'addition' ? '+' : '-';
+            let num1, num2, num3, answer;
+            let operatorSymbol;
+            let maxAnswerRange; // Max possible answer for option generation
 
-            if (operatorSymbol === '-') {
-                // Pastikan num1 selalu lebih besar atau sama dengan num2 untuk pengurangan positif
-                if (num2 > num1) {
-                    [num1, num2] = [num2, num1]; // Tukar nilai jika num2 lebih besar
+            // Logic based on current level
+            if (level === 1) {
+                num1 = Math.floor(Math.random() * 10) + 1; // 1-10
+                num2 = Math.floor(Math.random() * 10) + 1; // 1-10
+                operatorSymbol = currentOperation === 'addition' ? '+' : '-'; // Use initial choice for level 1
+
+                if (operatorSymbol === '-') {
+                    if (num2 > num1) {
+                        [num1, num2] = [num2, num1];
+                    }
+                    answer = num1 - num2;
+                } else {
+                    answer = num1 + num2;
                 }
-                answer = num1 - num2;
-            } else {
-                answer = num1 + num2;
-                // Tidak perlu membatasi hasil < 9 lagi, bisa sampai 20
+                questionExpressionSpan.textContent = `${num1} ${operatorSymbol} ${num2}`;
+                maxAnswerRange = 20; // Max for 10+10
+            } else if (level === 2) {
+                // Level 2: 3-number Addition
+                num1 = Math.floor(Math.random() * 10) + 1; // 1-10
+                num2 = Math.floor(Math.random() * 10) + 1; // 1-10
+                num3 = Math.floor(Math.random() * 10) + 1; // 1-10
+                operatorSymbol = '+'; // Always addition for level 2
+                answer = num1 + num2 + num3;
+                questionExpressionSpan.textContent = `${num1} + ${num2} + ${num3}`;
+                maxAnswerRange = 30; // Max for 10+10+10
+            } else { // level >= 3
+                // Level 3 and beyond: Mixed 2-number Addition/Subtraction
+                const operationType = Math.random() < 0.5 ? 'addition' : 'subtraction';
+                num1 = Math.floor(Math.random() * 10) + 1; // 1-10
+                num2 = Math.floor(Math.random() * 10) + 1; // 1-10
+
+                if (operationType === 'subtraction') {
+                    if (num2 > num1) {
+                        [num1, num2] = [num2, num1];
+                    }
+                    operatorSymbol = '-';
+                    answer = num1 - num2;
+                } else {
+                    operatorSymbol = '+';
+                    answer = num1 + num2;
+                }
+                questionExpressionSpan.textContent = `${num1} ${operatorSymbol} ${num2}`;
+                maxAnswerRange = 20; // Max for 10+10
             }
 
-            currentQuestion = { num1, num2, operator: operatorSymbol, answer: answer };
-
-            // Update flashcard display with combined expression
-            questionExpressionSpan.textContent = `${currentQuestion.num1} ${currentQuestion.operator} ${currentQuestion.num2}`;
+            currentQuestion = { num1, num2, num3: num3 || 0, operator: operatorSymbol, answer: answer }; // Include num3 for level 2
             answerSpan.textContent = currentQuestion.answer;
 
             // Reset flashcard flip state
             flashcardContainer.classList.remove('flipped');
 
-            // Generate options
+            // Generate options based on maxAnswerRange
             const correctOption = currentQuestion.answer;
             const newOptions = new Set();
             newOptions.add(correctOption);
-
-            // Generate 3 fake options, ensuring they are distinct and within reasonable range (0-20)
             while (newOptions.size < 4) {
-                let fakeOption = Math.floor(Math.random() * 21); // Angka 0-20
-                if (fakeOption !== correctOption && fakeOption >= 0 && fakeOption <= 20) {
+                let fakeOption = Math.floor(Math.random() * (maxAnswerRange + 1)); // 0 to maxAnswerRange
+                if (fakeOption !== correctOption && fakeOption >= 0) { // Ensure non-negative
                     newOptions.add(fakeOption);
                 }
             }
-
             const shuffledOptions = Array.from(newOptions).sort(() => Math.random() - 0.5);
             renderOptions(shuffledOptions);
 
@@ -426,7 +453,7 @@
             feedbackMessage.textContent = '';
             feedbackMessage.className = 'text-3xl font-bold mt-6 text-center text-white'; // Reset feedback style and ensure white text
             
-            // Randomly select initial narration
+            // Randomly select initial narration and speak it immediately
             const initialNarration = motivationalNarrations[Math.floor(Math.random() * motivationalNarrations.length)];
             narrationTextElement.textContent = initialNarration;
             speakNarration(initialNarration); // TTS for initial prompt
@@ -619,6 +646,8 @@
             modalMessage.textContent = `Kamu berhasil mengumpulkan ${score} bintang!`;
             const nextTarget = targetScore + 25; // Example progression
             modalNextTarget.textContent = `Siap untuk level berikutnya? Target: ${nextTarget} bintang!`;
+            
+            // Narasi TTS untuk modal level berikutnya
             speakNarration(`Selamat! Kamu berhasil mencapai ${score} bintang! Siap untuk level berikutnya? Target: ${nextTarget} bintang!`);
         };
 
@@ -685,12 +714,10 @@
         restBtn.addEventListener('click', () => {
             hideLevelCompleteModal();
             showScreen('home-screen'); // Go back to home screen
-            // Reset game state if desired, e.g., score = 0; level = 1; targetScore = 50;
-            // For now, it just goes back to the home screen without resetting score/level
-            // If you want to reset, uncomment the lines below:
-            // score = 0;
-            // level = 1;
-            // targetScore = 50;
+            // Reset game state when going back to home screen
+            level = 1;
+            targetScore = 50;
+            score = 0;
         });
 
         // Initial screen display
