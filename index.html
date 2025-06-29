@@ -47,19 +47,19 @@
         }
         /* Gradient backgrounds - Adjusting to cool tones */
         .bg-gradient-blue-1 {
-            background: linear-gradient(to bottom, #BFDBFE, #93C5FD); /* blue-200 to blue-300 */
+            background: linear-gradient(to bottom, #A7F3D0, #67E8F9); /* soft green-blue */
         }
         .bg-gradient-blue-2 {
-            background: linear-gradient(to bottom, #A7F3D0, #67E8F9); /* cyan-200 to cyan-400 */
+            background: linear-gradient(to bottom, #BFDBFE, #93C5FD); /* light blue */
         }
         .bg-gradient-blue-3 {
-            background: linear-gradient(to bottom, #C7D2FE, #A5B4FC); /* indigo-200 to indigo-300 */
+            background: linear-gradient(to bottom, #C7D2FE, #A5B4FC); /* soft indigo */
         }
         .bg-gradient-blue-4 {
-            background: linear-gradient(to bottom, #BFDBFE, #BFDBFE); /* blue-200 to blue-200 (solid blue) */
+            background: linear-gradient(to bottom, #D8B4FE, #C4B5FD); /* soft purple */
         }
         .bg-gradient-blue-5 {
-            background: linear-gradient(to bottom, #BFDBFE, #BFDBFE); /* blue-200 to blue-200 (solid blue) */
+            background: linear-gradient(to bottom, #A7F3D0, #A7F3D0); /* solid soft green-blue */
         }
         /* Home screen background */
         .bg-home-gradient {
@@ -133,6 +133,82 @@
             transform: scale(1) !important;
             opacity: 1 !important;
         }
+
+        /* Updated: 3D Gradient for Flashcard (Darker Blues) */
+        #flashcard-container {
+            background: linear-gradient(145deg, #3B82F6, #2563EB); /* Darker blue gradient */
+            box-shadow: 
+                0 15px 30px rgba(0, 0, 0, 0.4), /* Main shadow for depth */
+                0 5px 10px rgba(0, 0, 0, 0.3) inset, /* Inner shadow for top-left light */
+                -5px -5px 10px rgba(255, 255, 255, 0.15) inset; /* Inner shadow for bottom-right highlight */
+            border: 2px solid rgba(255, 255, 255, 0.4); /* Subtle border for definition */
+        }
+
+        /* Updated: 3D Gradient for Option Buttons (Darker Cyan/Teal) */
+        .btn-blue-option {
+            background: linear-gradient(145deg, #0D9488, #0F766E); /* Darker teal gradient */
+            box-shadow: 
+                0 8px 15px rgba(0, 0, 0, 0.3), /* Main shadow */
+                0 3px 6px rgba(0, 0, 0, 0.2) inset, /* Inner shadow for top-left light */
+                -3px -3px 6px rgba(255, 255, 255, 0.1) inset; /* Inner shadow for bottom-right highlight */
+            border: 1px solid rgba(255, 255, 255, 0.3); /* Subtle border */
+        }
+        .btn-blue-option:hover {
+            background: linear-gradient(145deg, #0F766E, #047857); /* Even darker teal on hover */
+        }
+
+        /* New: Animation for stars in the empty card */
+        @keyframes popInFadeOut {
+            0% { opacity: 0; transform: scale(0.5); }
+            20% { opacity: 1; transform: scale(1.2); }
+            80% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(0.8); }
+        }
+
+        /* Styles for multiple stars in pause animation */
+        .pause-star-icon {
+            font-size: 2.5rem; /* Smaller stars for multiple display */
+            display: inline-block; /* Allow stars to sit next to each other */
+            margin: 0 0.2rem; /* Small spacing between stars */
+            animation: popInFadeOut 2s forwards ease-out; /* Apply animation to each star */
+            opacity: 0; /* Start hidden */
+        }
+        .pause-star-icon.positive {
+            color: #FCD34D; /* Yellow for positive */
+        }
+        .pause-star-icon.negative {
+            color: #EF4444; /* Red for negative */
+        }
+
+        .star-change-text-small {
+            font-size: 2rem; /* Smaller text */
+            font-weight: bold;
+            color: white;
+            opacity: 0;
+            animation: popInFadeOut 2s forwards ease-out;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            margin-top: 0.5rem; /* Space below stars */
+        }
+        .star-change-text-small.positive {
+            color: #84CC16; /* Green for positive */
+        }
+        .star-change-text-small.negative {
+            color: #EF4444; /* Red for negative */
+        }
+
+        #pause-animation-container {
+            display: flex; /* Use flexbox */
+            flex-direction: column; /* Stack items vertically */
+            align-items: center; /* Center horizontally */
+            justify-content: center; /* Center vertically */
+            position: absolute;
+            inset: 0;
+        }
+        .star-icons-wrapper {
+            display: flex; /* To arrange stars horizontally */
+            justify-content: center;
+            align-items: center;
+        }
     </style>
 </head>
 <body class="flex flex-col min-h-screen">
@@ -173,10 +249,14 @@
             <!-- Content Area -->
             <div class="flex-1 flex flex-col items-center justify-center p-4 overflow-y-auto relative">
                 <!-- Flashcard Container (Question Card) -->
-                <div id="flashcard-container" class="w-11/12 max-w-md h-64 bg-purple-500 rounded-2xl shadow-lg relative cursor-pointer mb-6 transform hover:scale-105 transition-transform duration-300">
+                <div id="flashcard-container" class="w-11/12 max-w-md h-64 rounded-2xl shadow-lg relative cursor-pointer mb-6 transform hover:scale-105 transition-transform duration-300">
                     <div class="flashcard-inner">
                         <div class="flashcard-front">
                             <span id="question-expression" class="text-7xl font-bold text-white"></span>
+                            <!-- New: Container for stars during pause -->
+                            <div id="pause-animation-container" class="hidden">
+                                <!-- Stars and text will be injected here by JavaScript -->
+                            </div>
                         </div>
                         <div class="flashcard-back">
                             <span id="answer" class="text-7xl font-bold text-green-300"></span>
@@ -281,7 +361,10 @@
         const modalNextTarget = document.getElementById('modal-next-target');
         const nextLevelBtn = document.getElementById('next-level-btn');
         const playAgainBtn = document.getElementById('play-again-btn');
-        const restBtn = document.getElementById('rest-btn'); // New button element
+        const restBtn = document.getElementById('rest-btn');
+
+        // New elements for pause animation
+        const pauseAnimationContainer = document.getElementById('pause-animation-container');
 
 
         // App State
@@ -294,13 +377,16 @@
         let timerInterval; // To update the timer display
         let questionTimeout; // New variable for the 15-second timeout
 
+        // Global variable to track readiness for next question (for dynamic delay)
+        let nextQuestionReadyCount = 0;
+
         // Array of background gradient classes for dynamic changes (cool tones)
         const backgroundGradients = [
-            'bg-gradient-blue-1',
-            'bg-gradient-blue-2',
-            'bg-gradient-blue-3',
-            'bg-gradient-blue-4', // More blue variations
-            'bg-gradient-blue-5'
+            'bg-gradient-blue-1', /* soft green-blue */
+            'bg-gradient-blue-2', /* light blue */
+            'bg-gradient-blue-3', /* soft indigo */
+            'bg-gradient-blue-4', /* soft purple */
+            'bg-gradient-blue-5'  /* solid soft green-blue */
         ];
 
         // Array of motivational narrations for new questions
@@ -329,6 +415,14 @@
             timerDisplay.textContent = `${elapsedTime.toFixed(1)}s`;
         };
 
+        // New function to check if both visual animations and narration are done
+        const checkNextQuestionReadiness = () => {
+            if (nextQuestionReadyCount >= 2) { // Both visual and narration are done
+                generateQuestion();
+                Array.from(optionsContainer.children).forEach(btn => btn.disabled = false);
+            }
+        };
+
         // Function to handle question timeout
         const handleTimeout = () => {
             clearInterval(timerInterval); // Stop the timer display
@@ -346,26 +440,31 @@
 
             const narrationMsg = 'Waktu habis! Bintangmu berkurang 2.';
             narrationTextElement.textContent = narrationMsg;
-            speakNarration(narrationMsg); // TTS for timeout
-
-            spawnStars(1, 'incorrect'); // Animate star disappearing
-
-            scoreDisplay.addEventListener('animationend', () => {
-                scoreDisplay.classList.remove('score-pop');
-            }, { once: true });
-            feedbackMessage.addEventListener('animationend', () => {
-                feedbackMessage.classList.remove('feedback-show');
-            }, { once: true });
-
-            // After timeout feedback, clear content and wait for next question
-            questionExpressionSpan.textContent = ''; // Clear question
-            answerSpan.textContent = ''; // Clear answer
+            
+            // Clear question content during feedback phase
+            questionExpressionSpan.textContent = '';
+            answerSpan.textContent = '';
             flashcardContainer.classList.remove('flipped'); // Ensure card is front-facing if it was flipped
 
+            // Show stars and text in the empty card
+            showPauseAnimation(starsChange);
+
+            // Reset count for next question readiness check
+            nextQuestionReadyCount = 0; 
+
+            // Part 1: Visual animations delay (now includes pause animation duration)
             setTimeout(() => {
-                generateQuestion();
-                Array.from(optionsContainer.children).forEach(btn => btn.disabled = false);
-            }, 1500);
+                nextQuestionReadyCount++;
+                checkNextQuestionReadiness();
+            }, 2000); // Increased delay for popInFadeOut animation (2 seconds)
+
+            // Part 2: Narration completion
+            speakNarration(narrationMsg, () => {
+                nextQuestionReadyCount++;
+                checkNextQuestionReadiness();
+            });
+
+            spawnStars(1, 'incorrect'); // Animate star disappearing from score
         };
 
         // Function to generate a new question
@@ -374,6 +473,10 @@
             clearInterval(timerInterval);
             clearTimeout(questionTimeout); // Clear the previous timeout
             timerDisplay.textContent = '0.0s';
+
+            // Hide pause animation container
+            pauseAnimationContainer.classList.add('hidden');
+            pauseAnimationContainer.innerHTML = ''; // Clear any previous stars/text
 
             let num1, num2, num3, answer;
             let operatorSymbol;
@@ -476,7 +579,7 @@
             });
         };
 
-        // Function to spawn stars for appreciation
+        // Function to spawn stars for appreciation (flying stars)
         const spawnStars = (count, type) => {
             const flashcardRect = flashcardContainer.getBoundingClientRect();
             const startX = flashcardRect.left + flashcardRect.width / 2;
@@ -520,6 +623,34 @@
                 }, { once: true });
             }
         };
+
+        // New function to show stars and text in the empty card during pause
+        const showPauseAnimation = (starsChange) => {
+            pauseAnimationContainer.classList.remove('hidden');
+            pauseAnimationContainer.innerHTML = ''; // Clear previous content
+
+            const starIconsWrapper = document.createElement('div');
+            starIconsWrapper.className = 'star-icons-wrapper';
+
+            const starCount = Math.abs(starsChange);
+            const starClass = starsChange > 0 ? 'positive' : 'negative';
+
+            for (let i = 0; i < starCount; i++) {
+                const starIcon = document.createElement('i');
+                starIcon.className = `fas fa-star pause-star-icon ${starClass}`;
+                starIcon.style.animationDelay = `${i * 0.1}s`; // Stagger animation for each star
+                starIconsWrapper.appendChild(starIcon);
+            }
+            pauseAnimationContainer.appendChild(starIconsWrapper);
+
+            // Add text for star change
+            const starChangeTextElement = document.createElement('span');
+            starChangeTextElement.textContent = `${starsChange > 0 ? '+' : ''}${starsChange} Bintang!`;
+            starChangeTextElement.classList.add('star-change-text-small', starClass);
+            starChangeTextElement.style.animationDelay = `${starCount * 0.1}s`; // Delay text animation slightly after stars
+            pauseAnimationContainer.appendChild(starChangeTextElement);
+        };
+
 
         // Function to handle user's answer
         const handleAnswer = (selectedAnswer) => {
@@ -574,7 +705,7 @@
             scoreDisplay.textContent = score;
             scoreDisplay.classList.add('score-pop');
 
-            // Trigger star animations
+            // Trigger flying star animations
             if (starsChange > 0) {
                 spawnStars(starsChange, 'correct'); // Pass type 'correct'
             } else if (starsChange < 0) {
@@ -584,13 +715,29 @@
             // Set feedback and narration messages
             feedbackMessage.textContent = feedbackMsg;
             narrationTextElement.textContent = narrationMsg;
-            speakNarration(narrationMsg); // TTS for feedback narration
-
+            
             // Clear question content during feedback phase
             questionExpressionSpan.textContent = '';
             answerSpan.textContent = '';
             flashcardContainer.classList.remove('flipped'); // Ensure card is front-facing if it was flipped
 
+            // Show stars and text in the empty card
+            showPauseAnimation(starsChange);
+
+            // Reset count for next question readiness check
+            nextQuestionReadyCount = 0;
+
+            // Part 1: Visual animations delay (now includes pause animation duration)
+            setTimeout(() => {
+                nextQuestionReadyCount++;
+                checkNextQuestionReadiness();
+            }, 2000); // Increased delay for popInFadeOut animation (2 seconds)
+
+            // Part 2: Narration completion
+            speakNarration(narationMsg, () => {
+                nextQuestionReadyCount++;
+                checkNextQuestionReadiness();
+            });
 
             // Remove animation class after it finishes
             scoreDisplay.addEventListener('animationend', () => {
@@ -611,29 +758,24 @@
                 // Show level complete modal after a short delay
                 setTimeout(() => {
                     showLevelCompleteModal();
-                }, 2000); // Give time for animations and feedback to show
-            } else {
-                // Only generate next question if game is not complete
-                setTimeout(() => {
-                    generateQuestion();
-                    // Re-enable options
-                    Array.from(optionsContainer.children).forEach(btn => btn.disabled = false);
-                }, 1500);
+                }, 2500); // Fixed delay for modal to appear
             }
         };
 
         // Function for Text-to-Speech
-        const speakNarration = (text) => {
+        const speakNarration = (text, callback = () => {}) => {
             if ('speechSynthesis' in window) {
                 window.speechSynthesis.cancel(); // Stop any ongoing speech
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = 'id-ID'; // Set language to Indonesian
-                // You can customize voice here if needed:
-                // const voices = window.speechSynthesis.getVoices();
-                // utterance.voice = voices.find(voice => voice.lang === 'id-ID');
+                
+                utterance.onend = () => {
+                    callback(); // Call the provided callback when speech ends
+                };
                 window.speechSynthesis.speak(utterance);
             } else {
                 console.warn('SpeechSynthesis API not supported in this browser.');
+                callback(); // Call callback immediately if TTS not supported
             }
         };
 
