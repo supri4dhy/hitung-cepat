@@ -377,8 +377,9 @@
         let timerInterval; // To update the timer display
         let questionTimeout; // New variable for the 15-second timeout
 
-        // Global variable to track readiness for next question (for dynamic delay)
-        let nextQuestionReadyCount = 0;
+        // Global variables to track readiness for next question (for dynamic delay)
+        let visualFeedbackComplete = false;
+        let narrationFeedbackComplete = false;
 
         // Array of background gradient classes for dynamic changes (cool tones)
         const backgroundGradients = [
@@ -416,8 +417,9 @@
         };
 
         // New function to check if both visual animations and narration are done
-        const checkNextQuestionReadiness = () => {
-            if (nextQuestionReadyCount >= 2) { // Both visual and narration are done
+        const proceedToNextQuestionIfReady = () => {
+            // Only proceed if target score is NOT met and both feedbacks are complete
+            if (visualFeedbackComplete && narrationFeedbackComplete && score < targetScore) {
                 generateQuestion();
                 Array.from(optionsContainer.children).forEach(btn => btn.disabled = false);
             }
@@ -449,19 +451,20 @@
             // Show stars and text in the empty card
             showPauseAnimation(starsChange);
 
-            // Reset count for next question readiness check
-            nextQuestionReadyCount = 0; 
+            // Reset feedback flags
+            visualFeedbackComplete = false;
+            narrationFeedbackComplete = false;
 
             // Part 1: Visual animations delay (now includes pause animation duration)
             setTimeout(() => {
-                nextQuestionReadyCount++;
-                checkNextQuestionReadiness();
+                visualFeedbackComplete = true;
+                proceedToNextQuestionIfReady();
             }, 2000); // Increased delay for popInFadeOut animation (2 seconds)
 
             // Part 2: Narration completion
             speakNarration(narrationMsg, () => {
-                nextQuestionReadyCount++;
-                checkNextQuestionReadiness();
+                narrationFeedbackComplete = true;
+                proceedToNextQuestionIfReady();
             });
 
             spawnStars(1, 'incorrect'); // Animate star disappearing from score
@@ -724,19 +727,20 @@
             // Show stars and text in the empty card
             showPauseAnimation(starsChange);
 
-            // Reset count for next question readiness check
-            nextQuestionReadyCount = 0;
+            // Reset feedback flags for the next question
+            visualFeedbackComplete = false;
+            narrationFeedbackComplete = false;
 
             // Part 1: Visual animations delay (now includes pause animation duration)
             setTimeout(() => {
-                nextQuestionReadyCount++;
-                checkNextQuestionReadiness();
+                visualFeedbackComplete = true;
+                proceedToNextQuestionIfReady();
             }, 2000); // Increased delay for popInFadeOut animation (2 seconds)
 
             // Part 2: Narration completion
-            speakNarration(narationMsg, () => {
-                nextQuestionReadyCount++;
-                checkNextQuestionReadiness();
+            speakNarration(narrationMsg, () => {
+                narrationFeedbackComplete = true;
+                proceedToNextQuestionIfReady();
             });
 
             // Remove animation class after it finishes
